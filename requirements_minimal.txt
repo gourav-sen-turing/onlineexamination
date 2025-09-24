@@ -1,0 +1,41 @@
+# Minimal Working Requirements for Enhanced Online Examination System
+# Compatible with Python 3.8-3.12 and Django 3.2
+
+# Core Django - LTS version for stability
+Django==3.2.23
+
+# Required for existing functionality
+Pillow==10.1.0
+
+# Required for enhanced forms - FIXES widget_tweaks error
+django-widget-tweaks==1.5.0
+
+# Optional but recommended for better forms
+django-crispy-forms==1.14.0
+
+# Required for timezone support
+pytz==2023.3
+
+# Required for date handling
+python-dateutil==2.8.2
+
+# Required for fuzzy text matching in Fill-in-the-Blank questions
+fuzzywuzzy==0.18.0
+python-Levenshtein==0.23.0
+
+# Required for numerical operations
+numpy==1.24.4
+
+# Database adapter (SQLite is built-in, these are optional)
+# Uncomment one if using a different database:
+# psycopg2-binary==2.9.9  # For PostgreSQL
+# mysqlclient==2.2.0      # For MySQL
+
+# Optional development tools
+# django-extensions==3.2.3
+# ipython==8.17.2
+# django-debug-toolbar==4.2.0
+
+# Optional production server
+# gunicorn==21.2.0
+# whitenoise==6.6.0
