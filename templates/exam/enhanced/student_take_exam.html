@@ -1,0 +1,483 @@
+{% extends 'exam/exambase.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3>{{ course.course_name }}</h3>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <i class="fas fa-clock"></i> Duration: <span id="timer">{{ course.duration_minutes }}:00</span>
+                        </div>
+                        <div class="col-md-4">
+                            <i class="fas fa-question-circle"></i> Questions: {{ total_questions }}
+                        </div>
+                        <div class="col-md-4">
+                            <i class="fas fa-star"></i> Total Marks: {{ total_marks }}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body">
+                    <form method="post" id="exam-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="time_taken_seconds" id="time_taken_seconds">
+                        
+                        <!-- Question Navigation -->
+                        <div class="question-navigation mb-3">
+                            {% for qf in question_forms %}
+                            <button type="button" class="btn btn-outline-primary btn-sm question-nav-btn" 
+                                    data-question="{{ qf.number }}">
+                                {{ qf.number }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Questions -->
+                        {% for qf in question_forms %}
+                        <div class="question-container" id="question-{{ qf.number }}" 
+                             {% if qf.number != 1 %}style="display:none;"{% endif %}>
+                            
+                            <div class="question-header">
+                                <h4>Question {{ qf.number }} of {{ total_questions }}</h4>
+                                <span class="badge badge-info">{{ qf.question.get_question_type_display }}</span>
+                                <span class="badge badge-warning">{{ qf.question.marks }} Mark(s)</span>
+                            </div>
+                            
+                            <div class="question-text mt-3 mb-3">
+                                <p>{{ qf.question.question_text|safe }}</p>
+                            </div>
+                            
+                            <div class="answer-section">
+                                {% if qf.question.question_type == 'MCQ' %}
+                                    <!-- Multiple Choice Question -->
+                                    {% if qf.question.allow_multiple %}
+                                        <p class="text-muted">Select all that apply:</p>
+                                        {% for choice in qf.form.answer %}
+                                        <div class="form-check">
+                                            {{ choice }}
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        {% for choice in qf.form.answer %}
+                                        <div class="form-check">
+                                            {{ choice }}
+                                        </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                {% elif qf.question.question_type == 'TF' %}
+                                    <!-- True/False Question -->
+                                    {% for choice in qf.form.answer %}
+                                    <div class="form-check">
+                                        {{ choice }}
+                                    </div>
+                                    {% endfor %}
+                                    
+                                {% elif qf.question.question_type == 'FB' %}
+                                    <!-- Fill in the Blank -->
+                                    <div class="form-group">
+                                        {{ qf.form.answer }}
+                                    </div>
+                                    
+                                {% elif qf.question.question_type == 'SA' %}
+                                    <!-- Short Answer -->
+                                    <div class="form-group">
+                                        {{ qf.form.answer }}
+                                        <small class="form-text text-muted">
+                                            Min: {{ qf.question.min_words }} words, 
+                                            Max: {{ qf.question.max_words }} words
+                                        </small>
+                                        <div class="word-count">Word count: <span id="word-count-{{ qf.number }}">0</span></div>
+                                    </div>
+                                    
+                                {% elif qf.question.question_type == 'MT' %}
+                                    <!-- Matching Question -->
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h5>Match the following:</h5>
+                                        </div>
+                                    </div>
+                                    {% for field in qf.form %}
+                                        {% if field.name|slice:":6" == "match_" %}
+                                        <div class="form-group row">
+                                            <label class="col-md-4 col-form-label">{{ field.label }}</label>
+                                            <div class="col-md-6">
+                                                {{ field }}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                {% elif qf.question.question_type == 'DD' %}
+                                    <!-- Drag and Drop -->
+                                    <div class="drag-drop-container" data-question-id="{{ qf.question.id }}">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h5>Draggable Items:</h5>
+                                                <div class="draggable-items">
+                                                    {% for item in qf.question.draggable_items %}
+                                                    <div class="draggable-item" draggable="true" data-item="{{ item }}">
+                                                        {{ item }}
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h5>Drop Zones:</h5>
+                                                {% for zone in qf.question.drop_zones %}
+                                                <div class="drop-zone" data-zone="{{ zone }}">
+                                                    <label>{{ zone }}</label>
+                                                    <div class="drop-area"></div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {{ qf.form.drag_drop_mapping }}
+                                    </div>
+                                    
+                                {% elif qf.question.question_type == 'NUM' %}
+                                    <!-- Numerical Question -->
+                                    <div class="form-group">
+                                        {{ qf.form.answer }}
+                                        {% if qf.question.units %}
+                                        <small class="form-text text-muted">
+                                            Answer in {{ qf.question.units }}
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Navigation Buttons -->
+                            <div class="question-navigation-buttons mt-4">
+                                {% if qf.number > 1 %}
+                                <button type="button" class="btn btn-secondary prev-btn" data-current="{{ qf.number }}">
+                                    <i class="fas fa-arrow-left"></i> Previous
+                                </button>
+                                {% endif %}
+                                
+                                {% if qf.number < total_questions %}
+                                <button type="button" class="btn btn-primary next-btn" data-current="{{ qf.number }}">
+                                    Next <i class="fas fa-arrow-right"></i>
+                                </button>
+                                {% else %}
+                                <button type="button" class="btn btn-success" id="review-btn">
+                                    Review Answers <i class="fas fa-check"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        <!-- Review Section -->
+                        <div id="review-section" style="display:none;">
+                            <h3>Review Your Answers</h3>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Question</th>
+                                            <th>Type</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="review-table-body">
+                                        <!-- Populated by JavaScript -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="text-center mt-4">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-paper-plane"></i> Submit Exam
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Styles -->
+<style>
+    .question-navigation {
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+    }
+    
+    .question-nav-btn {
+        margin: 2px;
+        width: 40px;
+        height: 40px;
+    }
+    
+    .question-nav-btn.answered {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .question-nav-btn.active {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .question-container {
+        padding: 20px;
+        border: 1px solid #dee2e6;
+        border-radius: 5px;
+        background-color: white;
+    }
+    
+    .draggable-item {
+        padding: 10px;
+        margin: 5px;
+        background-color: #007bff;
+        color: white;
+        border-radius: 5px;
+        cursor: move;
+    }
+    
+    .drop-zone {
+        margin: 10px 0;
+    }
+    
+    .drop-area {
+        min-height: 50px;
+        border: 2px dashed #dee2e6;
+        border-radius: 5px;
+        padding: 10px;
+    }
+    
+    .drop-area.drag-over {
+        background-color: #e9ecef;
+        border-color: #007bff;
+    }
+    
+    .dropped-item {
+        padding: 5px 10px;
+        margin: 2px;
+        background-color: #28a745;
+        color: white;
+        border-radius: 3px;
+        display: inline-block;
+    }
+</style>
+
+<!-- JavaScript -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Timer functionality
+    var duration = {{ duration_seconds }};
+    var startTime = Date.now();
+    
+    function updateTimer() {
+        var elapsed = Math.floor((Date.now() - startTime) / 1000);
+        var remaining = duration - elapsed;
+        
+        if (remaining <= 0) {
+            $('#exam-form').submit();
+            return;
+        }
+        
+        var minutes = Math.floor(remaining / 60);
+        var seconds = remaining % 60;
+        $('#timer').text(minutes + ':' + (seconds < 10 ? '0' : '') + seconds);
+        
+        if (remaining < 300) { // Less than 5 minutes
+            $('#timer').addClass('text-danger');
+        }
+    }
+    
+    setInterval(updateTimer, 1000);
+    
+    // Question navigation
+    $('.question-nav-btn').click(function() {
+        var questionNumber = $(this).data('question');
+        showQuestion(questionNumber);
+    });
+    
+    $('.next-btn').click(function() {
+        var current = $(this).data('current');
+        showQuestion(current + 1);
+    });
+    
+    $('.prev-btn').click(function() {
+        var current = $(this).data('current');
+        showQuestion(current - 1);
+    });
+    
+    function showQuestion(number) {
+        $('.question-container').hide();
+        $('#question-' + number).show();
+        
+        $('.question-nav-btn').removeClass('active');
+        $('.question-nav-btn[data-question="' + number + '"]').addClass('active');
+        
+        // Scroll to top
+        window.scrollTo(0, 0);
+    }
+    
+    // Track answered questions
+    $('input[type="radio"], input[type="checkbox"], input[type="text"], textarea, select').change(function() {
+        var container = $(this).closest('.question-container');
+        var questionNumber = container.attr('id').replace('question-', '');
+        $('.question-nav-btn[data-question="' + questionNumber + '"]').addClass('answered');
+    });
+    
+    // Word count for short answer questions
+    $('textarea').on('input', function() {
+        var words = $(this).val().trim().split(/\s+/).length;
+        if ($(this).val().trim() === '') words = 0;
+        var questionNumber = $(this).closest('.question-container').attr('id').replace('question-', '');
+        $('#word-count-' + questionNumber).text(words);
+    });
+    
+    // Drag and Drop functionality
+    var draggedItem = null;
+    
+    $('.draggable-item').on('dragstart', function(e) {
+        draggedItem = this;
+        $(this).css('opacity', '0.5');
+    });
+    
+    $('.draggable-item').on('dragend', function(e) {
+        $(this).css('opacity', '1');
+    });
+    
+    $('.drop-area').on('dragover', function(e) {
+        e.preventDefault();
+        $(this).addClass('drag-over');
+    });
+    
+    $('.drop-area').on('dragleave', function(e) {
+        $(this).removeClass('drag-over');
+    });
+    
+    $('.drop-area').on('drop', function(e) {
+        e.preventDefault();
+        $(this).removeClass('drag-over');
+        
+        if (draggedItem) {
+            var itemText = $(draggedItem).data('item');
+            var droppedHtml = '<div class="dropped-item">' + itemText + ' <span class="remove-item">×</span></div>';
+            $(this).append(droppedHtml);
+            $(draggedItem).hide();
+            
+            // Update hidden field
+            updateDragDropMapping();
+        }
+    });
+    
+    $(document).on('click', '.remove-item', function() {
+        var itemText = $(this).parent().text().replace('×', '').trim();
+        $(this).parent().remove();
+        $('.draggable-item[data-item="' + itemText + '"]').show();
+        updateDragDropMapping();
+    });
+    
+    function updateDragDropMapping() {
+        var mapping = {};
+        $('.drop-zone').each(function() {
+            var zone = $(this).data('zone');
+            var items = [];
+            $(this).find('.dropped-item').each(function() {
+                items.push($(this).text().replace('×', '').trim());
+            });
+            if (items.length > 0) {
+                mapping[zone] = items;
+            }
+        });
+        $('input[name="drag_drop_mapping"]').val(JSON.stringify(mapping));
+    }
+    
+    // Review functionality
+    $('#review-btn').click(function() {
+        $('.question-container').hide();
+        $('#review-section').show();
+        populateReviewTable();
+    });
+    
+    function populateReviewTable() {
+        var tbody = $('#review-table-body');
+        tbody.empty();
+        
+        {% for qf in question_forms %}
+        var row = '<tr>';
+        row += '<td>Question {{ qf.number }}</td>';
+        row += '<td>{{ qf.question.get_question_type_display }}</td>';
+        
+        var isAnswered = $('.question-nav-btn[data-question="{{ qf.number }}"]').hasClass('answered');
+        if (isAnswered) {
+            row += '<td><span class="badge badge-success">Answered</span></td>';
+        } else {
+            row += '<td><span class="badge badge-warning">Not Answered</span></td>';
+        }
+        
+        row += '<td><button type="button" class="btn btn-sm btn-primary review-question-btn" data-question="{{ qf.number }}">Review</button></td>';
+        row += '</tr>';
+        tbody.append(row);
+        {% endfor %}
+    }
+    
+    $(document).on('click', '.review-question-btn', function() {
+        var questionNumber = $(this).data('question');
+        $('#review-section').hide();
+        showQuestion(questionNumber);
+    });
+    
+    // Save progress periodically
+    setInterval(function() {
+        saveProgress();
+    }, 30000); // Every 30 seconds
+    
+    function saveProgress() {
+        var formData = $('#exam-form').serializeArray();
+        var answers = {};
+        
+        formData.forEach(function(field) {
+            if (field.name !== 'csrfmiddlewaretoken' && field.name !== 'time_taken_seconds') {
+                if (answers[field.name]) {
+                    if (!Array.isArray(answers[field.name])) {
+                        answers[field.name] = [answers[field.name]];
+                    }
+                    answers[field.name].push(field.value);
+                } else {
+                    answers[field.name] = field.value;
+                }
+            }
+        });
+        
+        $.ajax({
+            url: '{% url "save-exam-progress" %}',
+            method: 'POST',
+            data: JSON.stringify({
+                exam_id: {{ course.id }},
+                answers: answers
+            }),
+            contentType: 'application/json',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                console.log('Progress saved');
+            }
+        });
+    }
+    
+    // Set time taken on form submission
+    $('#exam-form').on('submit', function() {
+        var elapsed = Math.floor((Date.now() - startTime) / 1000);
+        $('#time_taken_seconds').val(elapsed);
+    });
+});
+</script>
+{% endblock %}
