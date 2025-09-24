@@ -2,6 +2,8 @@ from django.urls import path,include
 from django.contrib import admin
 from exam import views
 from django.contrib.auth.views import LogoutView,LoginView
+from . import enhanced_views
+
 urlpatterns = [
    
     path('admin/', admin.site.urls),
@@ -49,15 +51,15 @@ urlpatterns = [
     path('delete-question/<int:pk>', views.delete_question_view,name='delete-question'),
     path('teacher/question-types/', enhanced_views.question_type_selection_view, name='teacher-question-type-selection'),
     path('teacher/create-question/<str:question_type>/<int:course_id>/', enhanced_views.create_question_view, name='teacher-create-question'),
+    path('teacher/questions/', enhanced_views.view_questions_view, name='teacher-view-questions'),
+    path('teacher/questions/<int:course_id>/', enhanced_views.view_questions_view, name='teacher-view-questions-course'),
     path('teacher/edit-question/<str:question_type>/<int:question_id>/', enhanced_views.edit_question_view, name='teacher-edit-question'),
     path('teacher/delete-question/<str:question_type>/<int:question_id>/', enhanced_views.delete_question_view, name='teacher-delete-question'),
     path('teacher/import-questions/', enhanced_views.import_questions_view, name='teacher-import-questions'),
     path('teacher/exam-analytics/<int:course_id>/', enhanced_views.exam_analytics_view, name='teacher-exam-analytics'),
     path('teacher/export-results/<int:course_id>/', enhanced_views.export_results_view, name='teacher-export-results'),
-
     path('student/take-exam/<int:course_id>/', enhanced_views.take_exam_view, name='student-take-exam'),
     path('student/view-result/<int:result_id>/', enhanced_views.view_result_view, name='student-view-result'),
-
     path('api/save-progress/', enhanced_views.save_exam_progress_view, name='save-exam-progress'),
     path('api/question-stats/<int:question_id>/', enhanced_views.get_question_stats_view, name='question-stats'),
 
